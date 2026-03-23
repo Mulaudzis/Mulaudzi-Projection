@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Mulaudzi Projection — Food Delivery</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo" onclick="showPage('home')">Mulaudzi<span>Projection</span></div>
+  <ul class="nav-links" id="navLinks">
+    <li><a href="#" id="nl-home" onclick="showPage('home');closeMenu();return false">Home</a></li>
+    <li><a href="#" id="nl-menu" onclick="showPage('menu');closeMenu();return false">Menu</a></li>
+    <li><a href="#" id="nl-track" onclick="showPage('track');closeMenu();return false">Track Order</a></li>
+    <li><a href="#" id="nl-dashboard" onclick="showPage('dashboard');closeMenu();return false">Dashboard</a></li>
+    <li><a href="#" id="nl-profile" onclick="showPage('profile');closeMenu();return false">Profile</a></li>
+    <li><a href="#" id="nl-settings" onclick="showPage('settings');closeMenu();return false">Settings</a></li>
+    <li><a href="#" id="nl-admin" onclick="openAdminLogin();closeMenu();return false" style="color:var(--orange);">⚙ Admin</a></li>
+  </ul>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="hamburger" id="hamburger" onclick="toggleMenu()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-right" id="navRight">
+      <button class="btn-outline" onclick="openAuth('login')">Sign In</button>
+      <button class="cart-btn" onclick="showPage('cart')">⭐ <span class="cart-count" id="cartCount">0</span></button>
+    </div>
+  </div>
+</nav>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeAuth()">✕</button>
+    <div class="modal-title" id="authModalTitle">Welcome 👋</div>
+    <div class="modal-sub" id="authModalSub">Sign in or create an account to order & track your food 🍔</div>
+
+    <!-- Tabs (hidden on forgot password view) -->
+    <div class="modal-tabs" id="authTabs">
+      <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="modal-tab" id="tab-signup" onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@email.com"
+          onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Password
+          <span onclick="switchTab('forgot')"
+            style="font-size:.78rem;color:var(--orange);font-weight:600;
+            cursor:pointer;text-decoration:underline;text-transform:none;letter-spacing:0;">
+            Forgot password?
+          </span>
+        </label>
+        <input type="password" id="loginPass" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <button class="modal-submit" onclick="doLogin()">Sign In →</button>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="signupForm" style="display:none">
+      <div class="form-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="suFirst" placeholder="Alex"/></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="suLast" placeholder="Smith"/></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="suEmail" placeholder="you@email.com"/></div>
+      <div class="form-group"><label>Password</label><input type="password" id="suPass" placeholder="••••••••"/></div>
+      <button class="modal-submit" onclick="doSignup()">Create Account →</button>
+    </div>
+
+    <!-- FORGOT PASSWORD FORM -->
+    <div id="forgotForm" style="display:none">
+      <div id="forgotStep1">
+        <div class="form-group">
+          <label>Your Email Address</label>
+          <input type="email" id="forgotEmail" placeholder="you@email.com"
+            onkeydown="if(event.key==='Enter')sendResetCode()"/>
+        </div>
+        <div id="forgotError" style="color:var(--red);font-size:.82rem;margin-bottom:10px;display:none;">
+          ❌ Email not recognised. Please check and try again.
+        </div>
+        <button class="modal-submit" onclick="sendResetCode()">📧 Send Reset Code</button>
+        <p style="text-align:center;margin-top:14px;">
+          <span onclick="switchTab('login')"
+            style="font-size:.82rem;color:var(--orange);cursor:pointer;font-weight:600;">
+            ← Back to Sign In
+          </span>
+        </p>
+      </div>
+
+      <div id="forgotStep2" style="display:none">
+        <div style="text-align:center;margin-bottom:18px;">
+          <div style="font-size:2.5rem;margin-bottom:8px;">📬</div>
+          <div style="font-size:.88rem;color:var(--gray);">
+            A 6-digit reset code was sent to<br>
+            <strong id="forgotEmailDisplay" style="color:var(--brown);"></strong>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Enter Reset Code</label>
+          <input type="text" id="resetCode" placeholder="e.g. 482916" maxlength="6"
+            style="letter-spacing:6px;font-size:1.2rem;text-align:center;font-weight:700;"
+            oninput="this.value=this.value.replace(/\D/g,'')"/>
+        </div>
+        <div id="codeError" style="color:var(--red);font-size:.82rem;margin-bottom:10px;display:none;">
+          ❌ Wrong code. Please try again.
+        </div>
+        <button class="modal-submit" onclick="verifyResetCode()">✅ Verify Code</button>
+        <p style="text-align:center;margin-top:12px;">
+          <span onclick="resendCode()"
+            style="font-size:.78rem;color:var(--gray);cursor:pointer;" id="resendBtn">
+            Resend code
+          </span>
+        </p>
+      </div>
+
+      <div id="forgotStep3" style="display:none">
+        <div style="text-align:center;margin-bottom:18px;">
+          <div style="font-size:2.5rem;margin-bottom:8px;">🔑</div>
+          <div style="font-size:.88rem;color:var(--gray);">Create your new password</div>
+        </div>
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="newPass1" placeholder="Min. 6 characters"/>
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="newPass2" placeholder="Repeat password"/>
+        </div>
+        <div id="passError" style="color:var(--red);font-size:.82rem;margin-bottom:10px;display:none;"></div>
+        <button class="modal-submit" onclick="doResetPassword()">🔒 Reset Password</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal" style="max-width:400px;">
+    <button class="modal-close" onclick="closeAdminLogin()">✕</button>
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:3rem;margin-bottom:8px;">🔐</div>
+      <div class="modal-title" style="font-size:1.5rem;">Admin Access</div>
+      <div class="modal-sub">Owner-only area. Enter your credentials.</div>
+    </div>
+    <div class="form-group">
+      <label>Admin Username</label>
+      <input type="text" id="adminUser" placeholder="admin" autocomplete="off"/>
+    </div>
+    <div class="form-group">
+      <label>Admin Password</label>
+      <input type="password" id="adminPass" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter')doAdminLogin()"/>
+    </div>
+    <div id="adminLoginError" style="color:var(--red);font-size:.85rem;margin-bottom:10px;display:none;">
+      ❌ Incorrect username or password.
+    </div>
+    <button class="modal-submit" onclick="doAdminLogin()">🔓 Enter Admin Panel</button>
+    <p style="text-align:center;font-size:.78rem;color:var(--gray);margin-top:14px;">
+      Default: <strong>admin</strong> / <strong>mulaudzi2026</strong>
+    </p>
+  </div>
+</div>
+
+<!-- ══ HOME ══ -->
+<div class="page active" id="page-home">
+  <div class="zone-banner">
+    <div class="zone-info">
+      <div class="zone-dot"></div>
+      <span>Delivering to: <strong id="currentZone">Downtown</strong></span>
+      <span style="color:var(--gray);font-size:.82rem;">• Est. 25–35 min</span>
+    </div>
+    <div class="zone-select">
+      <span style="font-size:.85rem;color:var(--gray);">Change zone:</span>
+      <select onchange="changeZone(this.value)">
+        <option>Madadzhi</option><option>Muwaweni</option><option>Mangulwane</option>
+        <option>Luhufhe</option>
+      </select>
+    </div>
+  </div>
+  <div class="hero">
+    <div class="hero-text">
+      <div class="hero-badge">🔥 Hot & Fresh Today</div>
+      <h1 class="hero-title">Cravings<br>Delivered<br>Fast.</h1>
+      <p class="hero-sub">Restaurant-quality meals at your door. Freshly made, never frozen.</p>
+      <button class="hero-cta" onclick="showPage('menu')">Order Now →</button>
+      <div class="hero-stats">
+        <div class="stat"><div class="stat-num">25min</div><div class="stat-label">Avg Delivery</div></div>
+        <div class="stat"><div class="stat-num">4.9★</div><div class="stat-label">Rating</div></div>
+        <div class="stat"><div class="stat-num">50+</div><div class="stat-label">Menu Items</div></div>
+      </div>
+    </div>
+    <div class="hero-image">🍔</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Today's Picks 🌟</div>
+    <div class="section-sub">Hand-picked favourites by our chefs</div>
+    <div class="food-grid" id="featuredGrid"></div>
+  </div>
+</div>
+
+<!-- ══ MENU ══ -->
+<div class="page" id="page-menu">
+  <div class="section">
+    <div class="section-title">Full Menu</div>
+    <div class="section-sub">Everything made fresh, daily.</div>
+    <div class="search-bar">
+      <span>🔍</span>
+      <input type="text" id="searchInput" placeholder="Search burgers, pizza, drinks…" oninput="renderMenu()"/>
+    </div>
+    <div class="categories" id="categories"></div>
+    <div class="food-grid" id="menuGrid"></div>
+  </div>
+</div>
+
+<!-- ══ CART ══ -->
+<div class="page" id="page-cart">
+  <div class="section">
+    <div class="section-title">Your Cart 🛒</div>
+    <div class="section-sub">Review your order before checkout</div>
+    <div id="cartContent"></div>
+  </div>
+</div>
+
+<!-- ══ CHECKOUT ══ -->
+<div class="page" id="page-checkout">
+  <div class="section">
+    <div class="section-title">Checkout</div>
+    <div class="section-sub">Just a few details and we'll get cooking!</div>
+    <div class="checkout-grid">
+      <div>
+        <!-- Delivery Zone -->
+        <div class="zone-card">
+          <h4>📍 Select Delivery Zone</h4>
+          <div class="zone-opts" id="zoneOpts"></div>
+        </div>
+        <div class="form-card">
+          <div class="form-title">🏠 Delivery Details</div>
+          <div class="form-row">
+            <div class="form-group"><label>First Name</label><input type="text" id="fname" placeholder="Alex"/></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="lname" placeholder="Smith"/></div>
+          </div>
+          <div class="form-group"><label>Phone</label><input type="tel" id="phone" placeholder="+1 555 000 0000"/></div>
+          <div class="form-group"><label>Address</label><input type="text" id="address" placeholder="123 Maple Street"/></div>
+          <div class="form-row">
+            <div class="form-group"><label>City</label><input type="text" id="city" placeholder="New York"/></div>
+            <div class="form-group"><label>ZIP</label><input type="text" id="zip" placeholder="10001"/></div>
+          </div>
+          <div class="form-group"><label>Notes</label><textarea rows="3" id="notes" placeholder="Extra sauce, no onions…"></textarea></div>
+        </div>
+        <div class="form-card" style="margin-top:20px;" id="paymentCard">
+          <div class="form-title">💳 Payment Gateway</div>
+
+          <!-- Payment method selector -->
+          <div class="payment-opts" id="payMethodOpts">
+            <div class="pay-opt selected" onclick="selectPayMethod(this,'card')">
+              <div class="pay-icon">💳</div>Bank Card
+            </div>
+            <div class="pay-opt" onclick="selectPayMethod(this,'cash')">
+              <div class="pay-icon">💵</div>Cash
+            </div>
+            <div class="pay-opt" onclick="selectPayMethod(this,'mobile')">
+              <div class="pay-icon">📱</div>Mobile Pay
+            </div>
+          </div>
+
+          <!-- BANK CARD FORM -->
+          <div id="cardGateway" style="margin-top:22px;">
+
+            <!-- Live card preview -->
+            <div class="gw-card-preview" id="gwCardPreview">
+              <div class="gw-chip"></div>
+              <div class="gw-number" id="gwDisplayNum">•••• •••• •••• ••••</div>
+              <div class="gw-bottom">
+                <div>
+                  <div class="gw-field-label">Card Holder</div>
+                  <div class="gw-field-val" id="gwDisplayName">YOUR NAME</div>
+                </div>
+                <div>
+                  <div class="gw-field-label">Expires</div>
+                  <div class="gw-field-val" id="gwDisplayExp">MM/YY</div>
+                </div>
+                <div style="font-size:1.6rem;opacity:.9;" id="gwDisplayBrand">💳</div>
+              </div>
+            </div>
+
+            <!-- Card input fields -->
+            <div class="form-group" style="margin-top:18px;">
+              <label>Card Number</label>
+              <input type="text" id="gwCardNum" placeholder="1234 5678 9012 3456"
+                maxlength="19" oninput="gwFormatCard(this)" autocomplete="cc-number"/>
+            </div>
+            <div class="form-group">
+              <label>Cardholder Name</label>
+              <input type="text" id="gwCardName" placeholder="Name on card"
+                oninput="gwUpdatePreview()" autocomplete="cc-name"/>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Expiry Date</label>
+                <input type="text" id="gwCardExp" placeholder="MM/YY" maxlength="5"
+                  oninput="gwFormatExp(this)" autocomplete="cc-exp"/>
+              </div>
+              <div class="form-group">
+                <label>CVV</label>
+                <input type="password" id="gwCardCvv" placeholder="•••" maxlength="4"
+                  autocomplete="cc-csc"/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Card Type</label>
+              <select class="setting-select" id="gwCardType" style="width:100%;" onchange="gwUpdatePreview()">
+                <option value="visa">Visa 💳</option>
+                <option value="mastercard">Mastercard 🔴</option>
+                <option value="amex">Amex 🟦</option>
+                <option value="other">Other 🏦</option>
+              </select>
+            </div>
+
+            <!-- Secure badge -->
+            <div style="display:flex;align-items:center;gap:8px;background:#f0faf5;
+              border-radius:10px;padding:10px 14px;margin:14px 0;border:1px solid #c8e6c9;">
+              <span style="font-size:1.2rem;">🔒</span>
+              <span style="font-size:.78rem;color:var(--green);font-weight:600;">
+                256-bit SSL Encrypted · Your card details are secure
+              </span>
+            </div>
+
+          </div>
+
+          <!-- CASH / MOBILE placeholders -->
+          <div id="cashGateway" style="display:none;margin-top:18px;">
+            <div style="background:var(--orange-dim);border-radius:14px;padding:20px;text-align:center;">
+              <div style="font-size:2.5rem;margin-bottom:8px;">💵</div>
+              <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1rem;">Pay on Delivery</div>
+              <div style="font-size:.85rem;color:var(--gray);margin-top:6px;">
+                Have the exact amount ready when your order arrives.
+              </div>
+            </div>
+          </div>
+          <div id="mobileGateway" style="display:none;margin-top:18px;">
+            <div style="background:#e3f2fd;border-radius:14px;padding:20px;text-align:center;">
+              <div style="font-size:2.5rem;margin-bottom:8px;">📱</div>
+              <div style="font-family:'Fraunces',serif;font-weight:700;font-size:1rem;">Mobile Payment</div>
+              <div style="font-size:.85rem;color:var(--gray);margin-top:6px;">
+                A payment request will be sent to your registered mobile number.
+              </div>
+            </div>
+          </div>
+
+          <button class="place-order-btn" style="margin-top:24px;" onclick="processPayment()">
+            🔒 Pay &amp; Place Order
+          </button>
+        </div>
+      </div>
+      <div class="order-summary" id="checkoutSummary"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIRMATION ══ -->
+<div class="page" id="page-confirm">
+  <div class="section">
+    <div class="confirm-wrap">
+      <div class="confirm-icon">🎉</div>
+      <div class="confirm-title">Order Placed!</div>
+      <p class="confirm-sub">Your food is being prepared with love.<br>Estimated delivery: <strong id="confirmEta">25–35 minutes</strong></p>
+      <div class="order-id" id="orderId"></div><br/><br/>
+      <button class="back-home-btn" onclick="showPage('home')">Back to Home</button>
+      <button class="track-order-btn" onclick="trackLastOrder()">📍 Track Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ORDER TRACKING ══ -->
+<div class="page" id="page-track">
+  <div class="section">
+    <div class="section-title">Track Your Order 📍</div>
+    <div class="section-sub">Enter your order ID to see live status</div>
+    <div class="tracking-wrap">
+      <div class="tracking-search">
+        <input type="text" id="trackInput" placeholder="e.g. BR-A1B2C3"/>
+        <button onclick="doTrack()">Track →</button>
+      </div>
+      <div id="trackResult"></div>
+
+      <!-- Order History (if logged in) -->
+      <div id="orderHistory" style="display:none;margin-top:40px;">
+        <div class="section-title" style="font-size:1.4rem;margin-bottom:20px;">Your Orders</div>
+        <div class="order-hist" id="histList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DASHBOARD ══ -->
+<div class="page" id="page-dashboard">
+  <div class="section">
+
+    <!-- Greeting banner -->
+    <div class="dash-greeting-banner" id="dashGreetingBanner">
+      <div>
+        <div class="dgb-time" id="dashGreeting">Good morning 👋</div>
+        <div class="dgb-name" id="dashName">Welcome to Mulaudzi Projection</div>
+        <div class="dgb-sub" id="dashSub">Here's your food delivery overview</div>
+      </div>
+      <div class="dgb-avatar" id="dashAvatar">🍽️</div>
+    </div>
+
+    <!-- 4 Stat Cards -->
+    <div class="dash-grid" id="dashCards"></div>
+
+    <!-- Row: Favourites + Quick Actions only -->
+    <div class="dash-row">
+      <div class="dash-panel">
+        <div class="dp-title">❤️ Your Favourites
+          <span style="font-size:.75rem;color:var(--gray);font-weight:400;margin-left:6px;">Tap to add to cart</span>
+        </div>
+        <div class="fav-grid" id="dashFavs"></div>
+      </div>
+      <div class="dash-panel">
+        <div class="dp-title">🎯 Quick Actions</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button onclick="showPage('menu')"
+            style="background:var(--orange);color:#fff;border:none;border-radius:14px;padding:14px 16px;
+            font-family:'DM Sans',sans-serif;font-weight:700;font-size:.92rem;cursor:pointer;
+            text-align:left;display:flex;align-items:center;gap:10px;transition:all .2s;
+            box-shadow:0 4px 14px rgba(244,98,42,.3);">
+            <span style="font-size:1.3rem;">🍔</span> Browse Menu
+          </button>
+          <button onclick="showPage('track')"
+            style="background:var(--orange-dim);color:var(--orange);border:2px solid #f5cdb5;border-radius:14px;
+            padding:14px 16px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.92rem;cursor:pointer;
+            text-align:left;display:flex;align-items:center;gap:10px;transition:all .2s;">
+            <span style="font-size:1.3rem;">📍</span> Track My Order
+          </button>
+          <button onclick="showPage('profile')"
+            style="background:#e8f5e9;color:var(--green);border:2px solid #c8e6c9;border-radius:14px;
+            padding:14px 16px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.92rem;cursor:pointer;
+            text-align:left;display:flex;align-items:center;gap:10px;transition:all .2s;">
+            <span style="font-size:1.3rem;">👤</span> View Profile
+          </button>
+          <button onclick="showPage('settings')"
+            style="background:#f3e5f5;color:#8e24aa;border:2px solid #e1bee7;border-radius:14px;
+            padding:14px 16px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:.92rem;cursor:pointer;
+            text-align:left;display:flex;align-items:center;gap:10px;transition:all .2s;">
+            <span style="font-size:1.3rem;">⚙️</span> Settings
+          </button>
+        </div>
+        <!-- Free delivery progress -->
+        <div id="dashFreeDeliveryBar" style="margin-top:16px;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ PROFILE ══ -->
+<div class="page" id="page-profile">
+  <div class="section">
+    <div class="section-title">My Profile 👤</div>
+    <div class="section-sub">Manage your personal information</div>
+    <div class="profile-wrap">
+      <div>
+        <div class="profile-card">
+          <div class="profile-avatar-wrap">
+            <div class="profile-avatar" id="profileAvatar">?</div>
+            <div class="avatar-edit">✏️</div>
+          </div>
+          <div class="profile-name" id="profileName">Guest User</div>
+          <div class="profile-email" id="profileEmail">Not signed in</div>
+          <div class="profile-badge" id="profileBadge">🥉 New Member</div>
+          <div style="margin-top:16px;">
+            <button onclick="currentUser?showPage('settings'):openAuth('login')" style="width:100%;background:var(--orange);color:#fff;border:none;border-radius:50px;padding:11px;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;">
+              Edit Profile
+            </button>
+          </div>
+          <div class="profile-stats" id="profileStats">
+            <div class="ps-box"><div class="ps-val" id="psTotalOrders">0</div><div class="ps-label">Orders</div></div>
+            <div class="ps-box"><div class="ps-val" id="psTotalSpent">R0</div><div class="ps-label">Total Spent</div></div>
+            <div class="ps-box"><div class="ps-val" id="psFavItem">—</div><div class="ps-label">Fav Item</div></div>
+            <div class="ps-box"><div class="ps-val" id="psMember">New</div><div class="ps-label">Member</div></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="profile-detail-card">
+          <div class="pd-title">📋 Personal Details</div>
+          <div class="pd-field"><span class="pd-key">Full Name</span><span class="pd-val" id="pdName">—</span><button class="pd-edit-btn" onclick="openAuth('login')">Edit</button></div>
+          <div class="pd-field"><span class="pd-key">Email</span><span class="pd-val" id="pdEmail">—</span><button class="pd-edit-btn" onclick="openAuth('login')">Edit</button></div>
+          <div class="pd-field"><span class="pd-key">Phone</span><span class="pd-val" id="pdPhone">—</span><button class="pd-edit-btn" onclick="openAuth('login')">Edit</button></div>
+          <div class="pd-field"><span class="pd-key">Delivery Zone</span><span class="pd-val" id="pdZone">Madadzhi</span><button class="pd-edit-btn" onclick="showPage('settings')">Change</button></div>
+        </div>
+        <div class="profile-detail-card">
+          <div class="pd-title">🧾 Order History</div>
+          <div id="profileOrderHistory"><p style="color:var(--gray);font-size:.9rem;">No orders yet. <a href="#" onclick="showPage('menu');return false" style="color:var(--orange);">Order now →</a></p></div>
+        </div>
+        <div class="profile-detail-card">
+          <div class="pd-title">❤️ Saved Favourites</div>
+          <div class="fav-grid" id="profileFavs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="page" id="page-settings">
+  <div class="section">
+    <div class="section-title">Settings ⚙️</div>
+    <div class="section-sub">Customise your Mulaudzi Projection experience</div>
+    <div class="settings-wrap">
+      <!-- Account -->
+      <div class="settings-section">
+        <div class="ss-title">👤 Account</div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Full Name</div><div class="sr-desc" id="setName">Not set</div></div>
+          <button class="pd-edit-btn" onclick="openAuth('login')">Edit</button>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Email Address</div><div class="sr-desc" id="setEmail">Not set</div></div>
+          <button class="pd-edit-btn" onclick="openAuth('login')">Edit</button>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Default Delivery Zone</div><div class="sr-desc">Where we deliver to</div></div>
+          <select class="setting-select" id="setZone" onchange="updateDefaultZone(this.value)">
+            <option>Madadzhi</option><option>Muwaweni</option><option>Mangulwane</option><option>Luhufhe</option>
+          </select>
+        </div>
+      </div>
+      <!-- Notifications -->
+      <div class="settings-section">
+        <div class="ss-title">🔔 Notifications</div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Order Updates</div><div class="sr-desc">Get notified when your order status changes</div></div>
+          <label class="toggle"><input type="checkbox" checked id="notifOrders"/><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Promotions & Deals</div><div class="sr-desc">Weekly offers and discount alerts</div></div>
+          <label class="toggle"><input type="checkbox" id="notifPromo"/><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">New Menu Items</div><div class="sr-desc">Be first to know about new dishes</div></div>
+          <label class="toggle"><input type="checkbox" checked id="notifMenu"/><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <!-- Preferences -->
+      <div class="settings-section">
+        <div class="ss-title">🍽️ Food Preferences</div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Dietary Preference</div><div class="sr-desc">Filter menu for your diet</div></div>
+          <select class="setting-select" id="setPref">
+            <option>No restriction</option><option>Vegetarian</option><option>Vegan</option><option>Halal</option><option>Gluten-free</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Spice Level</div><div class="sr-desc">Default spice preference</div></div>
+          <select class="setting-select" id="setSpice">
+            <option>Mild</option><option>Medium</option><option>Hot</option><option>Extra Hot 🔥</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Show Calorie Info</div><div class="sr-desc">Display calories on menu items</div></div>
+          <label class="toggle"><input type="checkbox" id="showCals"/><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <!-- Privacy -->
+      <div class="settings-section">
+        <div class="ss-title">🔒 Privacy & Security</div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Save Order History</div><div class="sr-desc">Keep a record of past orders</div></div>
+          <label class="toggle"><input type="checkbox" checked id="saveHistory"/><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Location Access</div><div class="sr-desc">Allow real-time GPS for delivery tracking</div></div>
+          <label class="toggle"><input type="checkbox" checked id="locationAccess"/><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Two-Factor Auth</div><div class="sr-desc">Extra security on your account</div></div>
+          <label class="toggle"><input type="checkbox" id="twoFactor"/><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <!-- Danger zone -->
+      <div class="settings-section">
+        <div class="ss-title">⚠️ Danger Zone</div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Sign Out</div><div class="sr-desc">Log out of your account</div></div>
+          <button class="danger-btn" onclick="logout();showPage('home')">Sign Out</button>
+        </div>
+        <div class="setting-row">
+          <div class="sr-info"><div class="sr-label">Clear Order History</div><div class="sr-desc">Remove all saved orders</div></div>
+          <button class="danger-btn" onclick="clearHistory()">Clear History</button>
+        </div>
+      </div>
+      <button class="save-settings-btn" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADMIN ══ -->
+<div class="page" id="page-admin">
+  <div class="admin-wrap">
+    <div class="admin-sidebar">
+      <div class="admin-logo">Mulaudzi<span>Projection Admin</span></div>
+      <div class="admin-nav">
+        <div class="admin-link active" onclick="adminTab('dashboard',this)"><span class="icon">📊</span>Dashboard</div>
+        <div class="admin-link" onclick="adminTab('orders',this)"><span class="icon">🧾</span>Orders</div>
+        <div class="admin-link" onclick="adminTab('customers',this)"><span class="icon">👥</span>Customers</div>
+        <div class="admin-link" onclick="adminTab('menu',this)"><span class="icon">🍽️</span>Menu Manager</div>
+        <div class="admin-link" onclick="adminTab('zones',this)"><span class="icon">📍</span>Delivery Zones</div>
+        <div class="admin-link" onclick="adminTab('banking',this)"><span class="icon">💳</span>Bank Cards</div>
+        <div class="admin-link" onclick="adminLogout()" style="margin-top:auto;color:rgba(255,100,100,.8);"><span class="icon">🔒</span>Lock Admin</div>
+      </div>
+    </div>
+    <div class="admin-main" id="adminMain"></div>
+  </div>
+</div>
+
+<!-- PAYMENT PROCESSING MODAL -->
+<div class="pay-modal-overlay" id="payModalOverlay">
+  <div class="pay-modal" id="payModal">
+    <div id="payStepProcessing">
+      <div class="pay-spinner"></div>
+      <div class="pay-modal-title">Processing Payment</div>
+      <div class="pay-modal-sub" id="payStatusMsg">Connecting to bank...</div>
+      <div class="pay-progress"><div class="pay-progress-fill" id="payProgressFill" style="width:0%"></div></div>
+      <div style="font-size:.78rem;color:var(--gray);">🔒 Secure 256-bit SSL connection</div>
+    </div>
+    <div id="payStepSuccess" style="display:none;">
+      <div class="pay-success-icon">✅</div>
+      <div class="pay-modal-title" style="color:var(--green);">Payment Successful!</div>
+      <div class="pay-modal-sub" id="paySuccessMsg">Your payment has been processed.</div>
+      <div style="background:var(--orange-dim);border-radius:12px;padding:14px;margin:16px 0;">
+        <div style="font-size:.78rem;color:var(--gray);">Amount Charged</div>
+        <div style="font-family:'Fraunces',serif;font-size:1.8rem;font-weight:900;color:var(--orange);" id="paySuccessAmount"></div>
+      </div>
+      <div style="background:#e8f5e9;border-radius:12px;padding:12px;margin-bottom:16px;font-size:.82rem;color:var(--green);">
+        🎉 Order placed! We're preparing your food.
+      </div>
+    </div>
+    <div id="payStepFailed" style="display:none;">
+      <div style="font-size:3rem;margin-bottom:14px;">❌</div>
+      <div class="pay-modal-title" style="color:var(--red);">Payment Failed</div>
+      <div class="pay-modal-sub" id="payFailMsg">Please check your card details and try again.</div>
+      <button onclick="closePayModal()"
+        style="margin-top:20px;background:var(--orange);color:#fff;border:none;border-radius:50px;
+        padding:12px 32px;font-family:'DM Sans',sans-serif;font-weight:700;cursor:pointer;">
+        Try Again
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CART DRAWER -->
+<div class="cart-drawer-overlay" id="cartDrawerOverlay" onclick="closeCartDrawer()"></div>
+<div class="cart-drawer" id="cartDrawer">
+  <div class="cd-header">
+    <div class="cd-title">⭐ My Cart <span class="cart-count" id="drawerCartCount" style="background:var(--orange);">0</span></div>
+    <button class="cd-close" onclick="closeCartDrawer()">✕</button>
+  </div>
+  <div class="cd-body" id="drawerBody"></div>
+  <div class="cd-footer" id="drawerFooter" style="display:none;"></div>
+</div>
+
+<footer>&copy; 2026 <strong>Mulaudzi Projection</strong> — Food Delivery.</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
